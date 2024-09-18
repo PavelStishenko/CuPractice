@@ -1,29 +1,20 @@
 from ase.io import read, write
 from ase import Atoms
-from mace.calculators import mace_mp
 from ase.build import surface
-from ase.visualize import view
-from ase.constraints import FixAtoms, UnitCellFilter
-from ase.build import bulk, fcc100
+from ase.build import bulk
 from ase.build.supercells import make_supercell
 import numpy as np
-from ase.build.tools import sort
-from ase.optimize import LBFGS
-    
+
 def cu2o_bulk():
     bulk=read('9007497.cif')
-    #bulk.translate([5.0,5.0,5.0])
-    #bulk.wrap()
     return bulk
 
 def cu2o111(bulk, n_layers, vacuum):
-  bulk.translate(np.array([1.0, 1.0, 1.0])*1.0)
-  bulk.wrap()
-  slab = surface(bulk, (1,1,1), n_layers, vacuum=vacuum, periodic=True) 
-  bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
-  mask1=slab.positions[:, 2] < bottom_Cu_z + 1.0
-  slab.set_constraint(FixAtoms(mask=mask1))
-  return slab 
+    bulk.translate(np.array([1.0, 1.0, 1.0])*1.0)
+    bulk.wrap()
+    slab = surface(bulk, (1,1,1), n_layers, vacuum=vacuum, periodic=True) 
+    bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
+    return slab 
   
 def CuD_FCC111(bulk, n_layers, vacuum): #oxygens too high, an easy fix though!
     slab = cu2o111(bulk, n_layers, vacuum)
@@ -53,11 +44,9 @@ def CuDO_FCC111(bulk, n_layers, vacuum): #not checked thoroughly but seems close
     mask3=(superslab.positions[:, 2] >= unsat_Cu_z) & (superslab.symbols=='Cu') 
     del superslab[mask3]
     bottom_Cu_z = np.min(superslab[superslab.symbols=='Cu'].positions[:,2])
-    mask1=superslab.positions[:, 2] < bottom_Cu_z + 1.0
-    superslab.set_constraint(FixAtoms(mask=mask1))
     return superslab
     
-def py111(bulk,n_layers, vacuum):
+def py111(bulk, n_layers, vacuum):
     slab_initial = cu2o111(bulk, n_layers, vacuum)
     slab=make_supercell(slab_initial, [[2,-1,0], [-1,2, 0],  [0,0,1]] )
     O_pos = np.mean(slab.positions[slab.positions[:,2] > 15, :], axis=0) + [2.35,1.3, 3.75]
@@ -70,15 +59,11 @@ def py111(bulk,n_layers, vacuum):
     Cu3.translate([1.3,2.5,0])
     superslab = slab + O + Cu + Cu2 + Cu3
     bottom_Cu_z = np.min(superslab[superslab.symbols=='Cu'].positions[:,2])
-    mask1=superslab.positions[:, 2] < bottom_Cu_z + 1.0
-    superslab.set_constraint(FixAtoms(mask=mask1))
     return superslab
 
 def cu2o100(bulk, n_layers, vacuum):
   slab = surface(bulk, (1,0,0), n_layers, vacuum=vacuum, periodic=True) 
   bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
-  mask1=slab.positions[:, 2] < bottom_Cu_z + 1.0
-  slab.set_constraint(FixAtoms(mask=mask1))
   return slab 
   
 def Oterm1x1(bulk, n_layers, vacuum): ##
@@ -86,9 +71,6 @@ def Oterm1x1(bulk, n_layers, vacuum): ##
     CuMax = np.max(slab[slab.symbols=='Cu'].positions[:,2])
     mask2=(slab.positions[:, 2] >= CuMax) & (slab.symbols=='Cu')
     del slab[mask2]
-    bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
-    mask1=slab.positions[:, 2] < bottom_Cu_z + 1.0
-    slab.set_constraint(FixAtoms(mask=mask1))
     return slab
     
 def Cuterm1x1 (bulk, n_layers, vacuum):
@@ -96,31 +78,14 @@ def Cuterm1x1 (bulk, n_layers, vacuum):
     OMax = np.max(slab[slab.symbols=='O'].positions[:,2])
     mask2=(slab.positions[:, 2] >= OMax) & (slab.symbols=='O')
     del slab[mask2]
-    bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
-    mask1=slab.positions[:, 2] < bottom_Cu_z + 1.0
-    slab.set_constraint(FixAtoms(mask=mask1))
     return slab
-    
-def hollow_Cuterm (bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_position):
-    slab_initial= Cuterm1x1 (bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
-    Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
-    Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
-    Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
-    Cl = Atoms(symbols='Cl', positions = [Cl_pos])
-    Cl_ads = Atoms(symbols='Cl', positions = [Cl_pos])
-    slabads = slab + Cl_ads
-    return slabads
-    
+
 def slab3011(bulk,n_layers,vacuum):
     slab = cu2o100(bulk, n_layers, vacuum)
     superslab=make_supercell(slab, [[2,-1,0], [1,1, 0], [0,0,1]] )
     #Max_Cu_z = np.max(superslab[superslab.symbols=='Cu'].positions[:,2]) - 2.0
     #mask2=(superslab.positions[:, 2] >= Max_Cu_z) & (superslab.symbols=='Cu')
     #del superslab[mask2]
-    bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
-    mask1=slab.positions[:, 2] < bottom_Cu_z + 1.0
-    slab.set_constraint(FixAtoms(mask=mask1))
     return superslab
 
 def dimer1x1(bulk, n_layers, vacuum):
@@ -147,17 +112,10 @@ def c2x2(bulk, n_layers, vacuum):
     mask3=(superslab.positions[:, 2] >= Max_O_z) & (superslab.symbols=='O')
     del superslab[mask3]
     return superslab
-    
-def Cl_ads(Cl_X_position, Cl_Y_position):
-    Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
-    Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
-    Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, 5]
-    Cl = Atoms(symbols='Cl', positions = [Cl_pos])
-    return slab_ads
 
-def Bridge_STCl_CuO(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_position):
+def bridge_Cl_ST111(bulk,n_layers,vacuum, sc_size,Cl_X_position,Cl_Y_position,Cl_Z_position):
     slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
     Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
@@ -165,22 +123,13 @@ def Bridge_STCl_CuO(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_positi
     Cl_ads = Atoms(symbols='Cl', positions = [Cl_pos])
     slabads = slab + Cl_ads
     return slabads
-    
-def ST4x4(bulk,n_layers,vacuum):
-    slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
-    return slab
-    
-def Cuterm4x4 (bulk,n_layers,vacuum):
-    slab_initial= Cuterm1x1 (bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
-    return slab
 
-def Bridge_STCl_CuCu(bulk,n_layers,vacuum,Cl_Z_position):
+
+def bridge_STCl_CuCu(bulk,n_layers,vacuum, sc_size,Cl_Z_position):
     slab_initial = cu2o111(bulk, n_layers, vacuum)
     Cl_X_position=-1.25
     Cl_Y_position=0.9
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
     Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
@@ -189,9 +138,9 @@ def Bridge_STCl_CuCu(bulk,n_layers,vacuum,Cl_Z_position):
     slabads = slab + Cl_ads
     return slabads
     
-def STNO3(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_position): ##untested function
+def NO3_ST111(bulk,n_layers,vacuum, sc_size,Cl_X_position,Cl_Y_position,Cl_Z_position): ##untested function
     slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     N_X_position=0
     N_Y_position=0
     N_Z_position=10
@@ -214,11 +163,11 @@ def STNO3(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_position): ##unt
     slabads = slab + O_ads + Ob + Oc + N
     return slabads
     
-def atop_satCu_STCl(bulk,n_layers,vacuum,Cl_Z_position):
+def Cl_atop_satCu_ST111(bulk,n_layers,vacuum, sc_size,Cl_Z_position):
     Cl_X_position=2.3
     Cl_Y_position=-0.5
     slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
     Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
@@ -227,11 +176,11 @@ def atop_satCu_STCl(bulk,n_layers,vacuum,Cl_Z_position):
     slabads = slab + Cl_ads
     return slabads
     
-def atop_unsatCu_STCl(bulk,n_layers,vacuum,Cl_Z_position):
+def Cl_atop_unsatCu_ST111(bulk,n_layers,vacuum, sc_size,Cl_Z_position):
     Cl_X_position=0.75
     Cl_Y_position=-3
     slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
     Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
@@ -240,7 +189,7 @@ def atop_unsatCu_STCl(bulk,n_layers,vacuum,Cl_Z_position):
     slabads = slab + Cl_ads
     return slabads
 
-def CuObridge1_STCl(bulk,n_layers,vacuum):
+def CuObridge1_STCl(bulk,n_layers,vacuum, sc_size):
     slab = cu2o111(bulk, n_layers, vacuum)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
@@ -250,9 +199,9 @@ def CuObridge1_STCl(bulk,n_layers,vacuum):
     slabads = slab + Cl_ads
     return slabads
     
-def CuObridge2_STCl(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_position):
+def CuObridge2_STCl(bulk,n_layers,vacuum, sc_size, Cl_X_position,Cl_Y_position,Cl_Z_position):
     slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab= make_supercell(slab_initial, [[4,0,0], [0,4, 0],  [0,0,1]])
+    slab= make_supercell(slab_initial, sc_size)
     Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
     Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
     Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
@@ -261,4 +210,15 @@ def CuObridge2_STCl(bulk,n_layers,vacuum,Cl_X_position,Cl_Y_position,Cl_Z_positi
     slabads = slab + Cl_ads
     return slabads
 
+    
+def hollow_Cuterm100(bulk,n_layers,vacuum, sc_size, Cl_X_position,Cl_Y_position,Cl_Z_position):
+    slab_initial= Cuterm1x1 (bulk, n_layers, vacuum)
+    slab= make_supercell(slab_initial, sc_size)
+    Max_O= np.max(slab[slab.symbols=='O'].positions[:,2])
+    Max_Cu= np.max(slab[slab.symbols=='Cu'].positions[:,2])
+    Cl_pos = np.mean(slab.positions[slab.positions[:,2] > (Max_Cu and Max_O).all(), :], axis=0) + [Cl_X_position,Cl_Y_position, Cl_Z_position]
+    Cl = Atoms(symbols='Cl', positions = [Cl_pos])
+    Cl_ads = Atoms(symbols='Cl', positions = [Cl_pos])
+    slabads = slab + Cl_ads
+    return slabads
 
