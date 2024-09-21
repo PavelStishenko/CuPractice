@@ -3,6 +3,7 @@ from ase import Atoms
 from ase.build import surface
 from ase.build import bulk
 from ase.build.supercells import make_supercell
+from ase.geometry import get_distances
 import numpy as np
 
 def cu2o_bulk():
@@ -13,37 +14,42 @@ def cu2o111(bulk, n_layers, vacuum):
     bulk.translate(np.array([1.0, 1.0, 1.0])*1.0)
     bulk.wrap()
     slab = surface(bulk, (1,1,1), n_layers, vacuum=vacuum, periodic=True) 
-    bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
     return slab 
   
 def CuD_FCC111(bulk, n_layers, vacuum): #oxygens too high, an easy fix though!
     slab = cu2o111(bulk, n_layers, vacuum)
-    unsat_Cu_z = np.max(slab[slab.symbols=='Cu'].positions[:,2])
-    mask2=(slab.positions[:, 2] >= unsat_Cu_z) & (slab.symbols=='Cu')
-    del slab[mask2]
+    unsat_Cu_z = np.max(slab[slab.symbols=='Cu'].positions[:,2]) - 1e-3
+    mask_surf_Cu=(slab.positions[:, 2] >= unsat_Cu_z) & (slab.symbols=='Cu')
+    assert sum(mask_surf_Cu) == 4
+    surf_O_z = unsat_Cu_z - 0.9
+    mask_surf_O=(slab.positions[:, 2] >= surf_O_z) & (slab.symbols=='O')
+    assert sum(mask_surf_O) == 2
+    _,d = get_distances(slab[mask_surf_Cu].positions, slab[mask_surf_O].positions, slab.cell, slab.pbc)
+    assert d.shape == (4,2)
+    d = np.min(d, axis=1)
+    Cu_cus = np.argmax(d)
+    del slab[Cu_cus]
     return slab
 
 def STO_FCC111(bulk, n_layers, vacuum):
     slab = cu2o111(bulk, n_layers, vacuum)
     superslab=make_supercell(slab, [[2,-1,0], [-1,2, 0],  [0,0,1]] )
-    STO_z = np.max(superslab[superslab.symbols=='O'].positions[:,2])
+    STO_z = np.max(superslab[superslab.symbols=='O'].positions[:,2])-1e-3
     mask2 = (superslab.positions[:, 2] >= STO_z) & (superslab.symbols=='O')
+    assert sum(mask2) == 3
     index_to_remove = np.argmax(mask2)
     del superslab[index_to_remove]
-    
     return superslab
  
 def CuDO_FCC111(bulk, n_layers, vacuum): #not checked thoroughly but seems close if not quite perfect
-    slab = cu2o111(bulk, n_layers, vacuum)
+    slab = CuD_FCC111(bulk, n_layers, vacuum)
     superslab=make_supercell(slab, [[2,-1,0], [-1,2, 0],  [0,0,1]] )
-    STO_z = np.max(superslab[superslab.symbols=='O'].positions[:,2])
+    
+    STO_z = np.max(superslab[superslab.symbols=='O'].positions[:,2])-1e-3
     mask2 = (superslab.positions[:, 2] >= STO_z) & (superslab.symbols=='O')
+    assert sum(mask2) == 3
     index_to_remove = np.argmax(mask2)
     del superslab[index_to_remove]
-    unsat_Cu_z = np.max(superslab[superslab.symbols=='Cu'].positions[:,2])
-    mask3=(superslab.positions[:, 2] >= unsat_Cu_z) & (superslab.symbols=='Cu') 
-    del superslab[mask3]
-    bottom_Cu_z = np.min(superslab[superslab.symbols=='Cu'].positions[:,2])
     return superslab
     
 def py111(bulk, n_layers, vacuum):
@@ -58,12 +64,10 @@ def py111(bulk, n_layers, vacuum):
     Cu3 = Cu.copy()
     Cu3.translate([1.3,2.5,0])
     superslab = slab + O + Cu + Cu2 + Cu3
-    bottom_Cu_z = np.min(superslab[superslab.symbols=='Cu'].positions[:,2])
     return superslab
 
 def cu2o100(bulk, n_layers, vacuum):
   slab = surface(bulk, (1,0,0), n_layers, vacuum=vacuum, periodic=True) 
-  bottom_Cu_z = np.min(slab[slab.symbols=='Cu'].positions[:,2])
   return slab 
   
 def Oterm1x1(bulk, n_layers, vacuum): ##
