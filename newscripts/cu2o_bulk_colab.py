@@ -53,18 +53,22 @@ def CuDO_FCC111(bulk, n_layers, vacuum): #not checked thoroughly but seems close
     return superslab
     
 def py111(bulk, n_layers, vacuum):
-    slab_initial = cu2o111(bulk, n_layers, vacuum)
-    slab=make_supercell(slab_initial, [[2,-1,0], [-1,2, 0],  [0,0,1]] )
-    O_pos = np.mean(slab.positions[slab.positions[:,2] > 15, :], axis=0) + [2.35,1.3, 3.75]
-    Cu_pos = np.mean(slab.positions[slab.positions[:,2] > 15, :], axis=0) + [1.0,0.5, 2.0]
-    O = Atoms(symbols='O', positions = [O_pos])
-    Cu = Atoms(symbols='Cu', positions = [Cu_pos])
-    Cu2 = Cu.copy()
-    Cu2.translate([2.8,0,0])
-    Cu3 = Cu.copy()
-    Cu3.translate([1.3,2.5,0])
-    superslab = slab + O + Cu + Cu2 + Cu3
-    return superslab
+    slab = CuD_FCC111(bulk, n_layers, vacuum)
+    slab=make_supercell(slab, [[2,-1,0], [-1,2, 0],  [0,0,1]])
+    
+    surf_O_z = np.max(slab[slab.symbols=='O'].positions[:,2])-1e-3
+    mask_surf_O=(slab.positions[:, 2] >= surf_O_z) & (slab.symbols=='O')
+    assert sum(mask_surf_O) == 3
+    
+    pos_O1 =slab.positions[mask_surf_O][0]
+    pos_O1[2] = 0
+    slab.translate(-pos_O1)
+    
+    pyr = Atoms(symbols='Cu3O', positions=[[1.513,0.874,surf_O_z+1.0],[3.026,3.495,surf_O_z+1.0], [4.540,0.874,surf_O_z+1.0], [3.026,1.747,surf_O_z+2.0]])
+    
+    slab = slab + pyr
+
+    return slab
 
 def cu2o100(bulk, n_layers, vacuum):
   slab = surface(bulk, (1,0,0), n_layers, vacuum=vacuum, periodic=True) 
